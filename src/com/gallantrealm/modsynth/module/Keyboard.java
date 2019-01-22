@@ -22,6 +22,7 @@ public class Keyboard extends Module {
 	public CC tuningCC;
 	public CC octaveCC;
 	public CC sustainCC;
+	public CC invertStealCC;
 
 //	private transient float[] prepreLevel;
 	private transient float[] preLevel;
@@ -34,9 +35,9 @@ public class Keyboard extends Module {
 	private transient float[] smoothPressure;
 	private transient boolean[] damped;
 	private transient int[] noteForVoice;
-	private transient long[] noteOrder; // used to determine oldest note
+	private transient long[] voiceOrder; // used to determine when voice was allocated
 	private transient long notesPlayed; // increments for each note played
-	private transient boolean invertSteal = true; // if true then steal newest note
+	public transient boolean invertSteal = true; // if true then steal newest voice
 	public transient boolean sliding; // used to determine when to apply legato
 	public transient float[] noteVelocities;
 	
@@ -82,7 +83,7 @@ public class Keyboard extends Module {
 		pressedVelocity[voice] = velocity;
 		pressure[voice] = velocity;
 		smoothPressure[voice] = velocity;
-		noteOrder[voice] = ++notesPlayed;
+		voiceOrder[voice] = ++notesPlayed;
 	}
 
 	public void noteRelease(int note) {
@@ -101,7 +102,7 @@ public class Keyboard extends Module {
 		}
 		pressed[voice] = false;
 		justReleased[voice] = true;
-		noteOrder[voice] = 0;
+		voiceOrder[voice] = 0;
 		if (voices == 1) {
 			// shift to play the highest not pressed
 			for (int i = noteVelocities.length - 1; i >= 0; i--) {
@@ -153,24 +154,23 @@ public class Keyboard extends Module {
 			}
 		}
 		int nextVoice = 0;
-		long oldestTime = invertSteal ? 0 : notesPlayed;
-		// use the next voice not playing (detect oldest or youngest voice)
+		long order = invertSteal ? 0l : notesPlayed;
+		// use the next available voice (detect oldest or youngest voice)
 		for (int i = 0; i < voices; i++) {
-			if(noteOrder[i] == 0)
+			if(voiceOrder[i] == 0)
 				return i;
 			if(invertSteal) {
-				if(noteOrder[i] < oldestTime) {
+				if(voiceOrder[i] > order) {
 					nextVoice = i;
-					oldestTime = noteOrder[i];
+					order = voiceOrder[i];
 				}
 			} else {
-				if(noteOrder[i] > oldestTime) {
+				if(voiceOrder[i] < order) {
 					nextVoice = i;
-					oldestTime = noteOrder[i];
+					order = voiceOrder[i];
 				}
 			}
 		}
-		System.out.println("Stealing " + nextVoice + " on count " + oldestTime);
 		return nextVoice;
 	}
 
@@ -186,7 +186,7 @@ public class Keyboard extends Module {
 				if (damped[v]) {
 //					output2.value[v] = 0.0f;
 					pressed[v] = false;
-					noteOrder[v] = 0;
+					voiceOrder[v] = 0;
 					damped[v] = false;
 				}
 			}
@@ -209,7 +209,7 @@ public class Keyboard extends Module {
 		boolean voicePressed = false;
 		int playingVoices = voices == 0 ? 1 : voices;
 		for (int i = 0; i < playingVoices; i++) {
-			if (noteOrder[i] != 0) {
+			if (voiceOrder[i] != 0) {
 				pressure[i] = amount;
 				voicePressed = true;
 			}
@@ -328,7 +328,7 @@ public class Keyboard extends Module {
 		damped = new boolean[voices];
 		noteForVoice = new int[voices];
 		lastNote = new int[voices];
-		noteOrder = new long[voices];
+		voiceOrder = new long[voices];
 		if (portamentoCC == null) {
 			portamentoCC = new CC();
 		}
@@ -348,6 +348,10 @@ public class Keyboard extends Module {
 			sustainCC = new CC();
 			sustainCC.setRangeLimits(0, 1);
 			sustainCC.cc = 64; //Use default sustain CC
+		}
+		if (invertStealCC == null) {
+			invertStealCC = new CC();
+			invertStealCC.setRangeLimits(0, 1);
 		}
 		noteVelocities = new float[256];
 		
@@ -417,6 +421,9 @@ public class Keyboard extends Module {
 		}
 		if (sustainCC.cc == cc) {
 			setSustaining(value > 0.5);
+		}
+		if (invertStealCC.cc == cc) {
+			invertSteal = (value > 0.5);
 		}
 	}
 

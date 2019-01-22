@@ -131,6 +131,16 @@ public class KeyboardViewer extends ModuleViewer {
 		});
 		sustainBox.setOnLongClickListener(MidiControlDialog.newLongClickListener(module.sustainCC));
 
+		CheckBox invertStealBox = (CheckBox) view.findViewById(R.id.keyboardInvertSteal);
+		invertStealBox.setChecked(module.invertSteal);
+		invertStealBox.setOnCheckedChangeListener(new CheckBox.OnCheckedChangeListener() {
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				module.invertSteal = isChecked;
+				mainActivity.updateKeysPressed();
+			}
+		});
+		invertStealBox.setOnLongClickListener(MidiControlDialog.newLongClickListener(module.invertStealCC));
+
 		module.dirty = false;
 	}
 
