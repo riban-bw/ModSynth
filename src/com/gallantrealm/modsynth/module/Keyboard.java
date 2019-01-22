@@ -36,6 +36,7 @@ public class Keyboard extends Module {
 	private transient int[] noteForVoice;
 	private transient long[] noteOrder; // used to determine oldest note
 	private transient long notesPlayed; // increments for each note played
+	private transient boolean invertSteal = true; // if true then steal newest note
 	public transient boolean sliding; // used to determine when to apply legato
 	public transient float[] noteVelocities;
 	
@@ -137,7 +138,6 @@ public class Keyboard extends Module {
 	}
 
 	private transient int[] lastNote;
-	private transient int nextVoice;
 
 	/**
 	 * Returns either the voice that last played the note or next available voice
@@ -152,15 +152,25 @@ public class Keyboard extends Module {
 				return v;
 			}
 		}
-		long oldestTime = notesPlayed;
-		// use the next voice not playing
+		int nextVoice = 0;
+		long oldestTime = invertSteal ? 0 : notesPlayed;
+		// use the next voice not playing (detect oldest or youngest voice)
 		for (int i = 0; i < voices; i++) {
-			if(noteOrder[i] < oldestTime) {
-				// either older note or not playing (0)
-				nextVoice = i;
-				oldestTime = noteOrder[i];
+			if(noteOrder[i] == 0)
+				return i;
+			if(invertSteal) {
+				if(noteOrder[i] < oldestTime) {
+					nextVoice = i;
+					oldestTime = noteOrder[i];
+				}
+			} else {
+				if(noteOrder[i] > oldestTime) {
+					nextVoice = i;
+					oldestTime = noteOrder[i];
+				}
 			}
 		}
+		System.out.println("Stealing " + nextVoice + " on count " + oldestTime);
 		return nextVoice;
 	}
 
